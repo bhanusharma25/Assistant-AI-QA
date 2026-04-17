@@ -1,4 +1,13 @@
 # Assistant-AI-QA
+
+Generates test cases using Gemini API.
+
+## Setup
+npm install  
+create .env  
+npm start
+
+
 The AI QA Assistant is designed with a focused, engineering-driven QA workflow rather than general-purpose content generation:
 
  -Generates deterministic, structured outputs (HTML/Markdown tables) that can be directly consumed by test management tools
