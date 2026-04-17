@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>AI QA Assistant</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+
+<body>
+
+<div class="container">
+  <h2>🤖 AI QA Assistant</h2>
+
+  <textarea id="input" placeholder="Enter requirement..."></textarea>
+
+  <button onclick="generate()" id="btn">Generate Test Cases</button>
+
+  <!-- Controls -->
+  <div class="controls">
+    <input type="text" id="search" placeholder="Search..." onkeyup="filterTable()">
+
+    <select id="priorityFilter" onchange="filterTable()">
+      <option value="">All Priority</option>
+      <option value="High">High</option>
+      <option value="Medium">Medium</option>
+      <option value="Low">Low</option>
+    </select>
+
+    <button onclick="copyTable()">📋 Copy</button>
+    <button onclick="exportToExcel()">📥 Excel</button>
+    <button onclick="saveData()">💾 Save</button>
+    <button onclick="loadData()">📂 Load</button>
+  </div>
+
+  <div id="loader" class="loader">⏳ Generating...</div>
+
+  <div id="output"></div>
+</div>
+
+<script>
+// 🔥 Convert Markdown → Editable Table + Priority Column
+function convertMarkdownToTable(text) {
+  const lines = text.split("\n");
+  let html = "<table id='qaTable'><thead><tr>";
+  let headersAdded = false;
+
+  lines.forEach(line => {
+    if (line.includes("|") && !line.includes("---")) {
+      const cells = line.split("|").filter(c => c.trim());
+
+      if (!headersAdded) {
+        html += cells.map(c => `<th>${c}</th>`).join("");
+        html += "<th>Priority</th></tr></thead><tbody>";
+        headersAdded = true;
+      } else {
+        html += "<tr>";
+        html += cells.map(c => `<td contenteditable='true'>${c}</td>`).join("");
+
+        // ✅ Priority Dropdown
+        html += `
+          <td>
+            <select onchange="colorPriority(this)">
+              <option>Medium</option>
+              <option>High</option>
+              <option>Low</option>
+            </select>
+          </td>
+        `;
+        html += "</tr>";
+      }
+    }
+  });
+
+  html += "</tbody></table>";
+  return html;
+}
+
+// 🎯 Generate
+async function generate() {
+  const input = document.getElementById("input").value;
+  const output = document.getElementById("output");
+  const loader = document.getElementById("loader");
+
+  if (!input) return alert("Enter requirement");
+
+  loader.style.display = "block";
+
+  const res = await fetch("http://localhost:3000/generate-tests", {
+    method: "POST",
+    headers: {"Content-Type": "application/json"},
+    body: JSON.stringify({ requirement: input })
+  });
+
+  const data = await res.json();
+  output.innerHTML = convertMarkdownToTable(data.result);
+
+  loader.style.display = "none";
+}
+
+// 🎯 Filter
+function filterTable() {
+  const search = document.getElementById("search").value.toLowerCase();
+  const priority = document.getElementById("priorityFilter").value;
+
+  const rows = document.querySelectorAll("#qaTable tbody tr");
+
+  rows.forEach(row => {
+    const text = row.innerText.toLowerCase();
+    const selectedPriority = row.querySelector("select").value;
+
+    const matchSearch = text.includes(search);
+    const matchPriority = !priority || selectedPriority === priority;
+
+    row.style.display = (matchSearch && matchPriority) ? "" : "none";
+  });
+}
+
+// 🎯 Priority Color
+function colorPriority(select) {
+  const row = select.closest("tr");
+  row.classList.remove("high", "medium", "low");
+
+  if (select.value === "High") row.classList.add("high");
+  if (select.value === "Medium") row.classList.add("medium");
+  if (select.value === "Low") row.classList.add("low");
+}
+
+// 📋 Copy
+function copyTable() {
+  const table = document.getElementById("qaTable");
+  navigator.clipboard.writeText(table.innerText);
+  alert("Copied!");
+}
+
+// 📥 Export
+function exportToExcel() {
+  const table = document.getElementById("qaTable").outerHTML;
+  const blob = new Blob([table], { type: "application/vnd.ms-excel" });
+
+  const link = document.createElement("a");
+  link.href = URL.createObjectURL(blob);
+  link.download = "test_cases.xls";
+  link.click();
+}
+
+// 💾 Save
+function saveData() {
+  const table = document.getElementById("qaTable").outerHTML;
+  localStorage.setItem("qaData", table);
+  alert("Saved!");
+}
+
+// 📂 Load
+function loadData() {
+  const data = localStorage.getItem("qaData");
+  if (!data) return alert("No saved data");
+  document.getElementById("output").innerHTML = data;
+}
+</script>
+
+</body>
+</html>
